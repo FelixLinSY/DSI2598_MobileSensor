@@ -6,13 +6,14 @@
 
 Adafruit_VEML6070 uv = Adafruit_VEML6070();
 MAX44009          light;
-unsigned long     timer;
+unsigned long     timer_upload, timer_sensor;
 
+#define SENSOR_INTERVAL     3000        // unit: ms
 #define UPLOAD_INTERVAL     20000       // unit: ms
 
 const char *apn   = "internet.iot";             // APN for CHT
 const char *host  = "iiot.ideaschain.com.tw";   // MQTT host
-const char *user  = "Q4y4KZVebeQS2DLnIGCp";     // username for MQTT
+const char *user  = "<Your Authorized key>";     // username for MQTT
 const char *key   = "";                         // password for MQTT
 const char *topic = "v1/devices/me/telemetry";  // sensor data topic on ideaschain
 
@@ -49,28 +50,33 @@ void loop()
     float   temp, humidity;
     char    buff[255];
 
-    Serial.println("##########");
+    if (millis() >= timer_sensor) {
+        timer_sensor = millis() + SENSOR_INTERVAL;
+        
+        Serial.println("##########");
 
-    // read VEML6070 UV sensor
-    Serial.print("UV light level: ");
-    uv_index = uv.readUV();
-    Serial.println(uv_index);
+        // read VEML6070 UV sensor
+        Serial.print("UV light level: ");
+        uv_index = uv.readUV();
+        Serial.println(uv_index);
+    
+        // read MAX44009 Lux sensor
+        Serial.print("Light (lux):    ");
+        lux = light.get_lux();
+        Serial.println(lux);
+    
+        // read from SHT21
+        Serial.print("Humidity(%RH): ");
+        humidity = SHT2x.GetHumidity();
+        Serial.println(humidity);
+        Serial.print("Temperature(C): ");
+        temp = SHT2x.GetTemperature();
+        Serial.println(temp);
+    }
 
-    // read MAX44009 Lux sensor
-    Serial.print("Light (lux):    ");
-    lux = light.get_lux();
-    Serial.println(lux);
 
-    // read from SHT21
-    Serial.print("Humidity(%RH): ");
-    humidity = SHT2x.GetHumidity();
-    Serial.println(humidity);
-    Serial.print("Temperature(C): ");
-    temp = SHT2x.GetTemperature();
-    Serial.println(temp);
-
-    if (millis() >= timer) {
-        timer = millis() + UPLOAD_INTERVAL;
+    if (millis() >= timer_upload) {
+        timer_upload = millis() + UPLOAD_INTERVAL;
 
         sprintf(buff, "{\"temperature\":%s, \"humidity\":%s, \"uv\":%d, \"lux\":%d}",
                 String(temp).c_str(), String(humidity).c_str(), uv_index, lux);
